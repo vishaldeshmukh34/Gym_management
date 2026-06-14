@@ -13,6 +13,7 @@ import Membership from './pages/Membership';
 import TrainerSupport from './pages/TrainerSupport';
 import Challenges from './pages/Challenges';
 import AdminPanel from './pages/AdminPanel';
+import Notifications from './pages/Notifications';
 
 
 
@@ -42,6 +43,8 @@ const App = () => {
           <Route path="/trainer" element={<PrivateRoute><TrainerSupport /></PrivateRoute>} />
           <Route path="/challenges" element={<PrivateRoute><Challenges /></PrivateRoute>} />
           <Route path="/admin" element={<PrivateRoute><AdminPanel /></PrivateRoute>} />
+          <Route path="/notifications" element={<PrivateRoute><Notifications /></PrivateRoute>} />
+
 
           {/* पुढे इथे add होतील */}
         </Routes>

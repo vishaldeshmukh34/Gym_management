@@ -1,15 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
-import {
-  getAllUsers, deleteUser,
-} from '../api/userApi';
-import {
-  getAllTrainers, getActiveTrainers,
-} from '../api/trainerApi';
-import {
-  getAllActiveMemberships, getAllMemberships,
-} from '../api/membershipApi';
+import { getAllUsers } from '../api/userApi';
+import { getAllTrainers } from '../api/trainerApi';
+import { deleteAdminUser, getAdminAllMemberships } from '../api/adminApi';
 
 const AdminPanel = () => {
   const { user } = useAuth();
@@ -30,7 +24,7 @@ const AdminPanel = () => {
       const [usersRes, trainersRes, membershipsRes] = await Promise.allSettled([
         getAllUsers(),
         getAllTrainers(),
-        getAllMemberships(),
+        getAdminAllMemberships(),
       ]);
       if (usersRes.status === 'fulfilled') setUsers(Array.isArray(usersRes.value.data) ? usersRes.value.data : []);
       if (trainersRes.status === 'fulfilled') setTrainers(Array.isArray(trainersRes.value.data) ? trainersRes.value.data : []);
@@ -41,14 +35,16 @@ const AdminPanel = () => {
   const handleDeleteUser = async (id) => {
     if (!window.confirm('User delete करायचा आहे का?')) return;
     try {
-      await deleteUser(id);
+      await deleteAdminUser(id);
       setSuccess('User deleted! ✅');
       setUsers(prev => prev.filter(u => u.id !== id));
       setTimeout(() => setSuccess(''), 3000);
-    } catch (err) { setError(err.response?.data?.error || 'Failed'); }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to delete user');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
-  // Stats
   const totalRevenue = memberships.reduce((s, m) => s + (m.amount || 0), 0);
   const activeMemberships = memberships.filter(m => m.status === 'ACTIVE').length;
   const activeTrainers = trainers.filter(t => t.status === 'ACTIVE').length;
@@ -58,11 +54,11 @@ const AdminPanel = () => {
   const STATUS_COLOR = { ACTIVE: '#10b981', EXPIRED: '#f59e0b', CANCELLED: '#ef4444' };
 
   const tabs = [
-    { id: 'dashboard', label: '📊 Dashboard' },
-    { id: 'users',     label: `👥 Users (${users.length})` },
-    { id: 'trainers',  label: `🏋️ Trainers (${trainers.length})` },
+    { id: 'dashboard',   label: '📊 Dashboard' },
+    { id: 'users',       label: `👥 Users (${users.length})` },
+    { id: 'trainers',    label: `🏋️ Trainers (${trainers.length})` },
     { id: 'memberships', label: `🎫 Memberships (${memberships.length})` },
-    { id: 'revenue',   label: '💰 Revenue' },
+    { id: 'revenue',     label: '💰 Revenue' },
   ];
 
   return (
@@ -84,8 +80,8 @@ const AdminPanel = () => {
         th { padding: 12px 14px; text-align: left; color: rgba(255,255,255,0.4); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); }
         td { padding: 12px 14px; color: rgba(255,255,255,0.8); border-bottom: 1px solid rgba(255,255,255,0.04); }
         tr:hover td { background: rgba(255,255,255,0.02); }
-        .del-btn { padding: 5px 10px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #f87171; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; font-family: 'Barlow',sans-serif; transition: all 0.2s; }
-        .del-btn:hover { background: rgba(239,68,68,0.2); }
+        .del-btn { padding: 6px 12px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); color: #f87171; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; font-family: 'Barlow',sans-serif; transition: all 0.2s; }
+        .del-btn:hover { background: rgba(239,68,68,0.25); color: #fff; }
         .badge { display: inline-flex; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
         @media (max-width: 768px) {
           .ad-main { margin-left: 0 !important; padding: 14px !important; padding-top: 70px !important; }
@@ -107,7 +103,6 @@ const AdminPanel = () => {
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
 
       <div className="ad-main">
-        {/* Header */}
         <div className="fade-up" style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: '#fff', fontFamily: "'Barlow Condensed',sans-serif", margin: 0 }}>👑 Admin Dashboard</h1>
@@ -116,27 +111,24 @@ const AdminPanel = () => {
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>Gym management — users, trainers, memberships, revenue</p>
         </div>
 
-        {/* Alerts */}
         {success && <div className="fade-up" style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.25)', color: '#34d399', borderRadius: 10, padding: '12px 16px', fontSize: 13, marginBottom: 16 }}>{success}</div>}
         {error && <div className="fade-up" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#f87171', borderRadius: 10, padding: '12px 16px', fontSize: 13, marginBottom: 16 }}>{error}</div>}
 
-        {/* Tabs */}
         <div style={{ display: 'flex', gap: 10, marginBottom: 24, overflowX: 'auto', paddingBottom: 4 }}>
           {tabs.map(t => (
             <button key={t.id} className={`tab-btn ${activeTab === t.id ? 'active' : ''}`} onClick={() => setActiveTab(t.id)}>{t.label}</button>
           ))}
         </div>
 
-        {/* ── DASHBOARD ── */}
+        {/* DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div className="fade-up">
-            {/* Stats */}
             <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
               {[
-                { icon: '👥', label: 'Total Users',    val: users.length,       color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',   sub: `${memberUsers} members` },
-                { icon: '🏋️', label: 'Trainers',       val: trainers.length,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', sub: `${activeTrainers} active` },
-                { icon: '🎫', label: 'Memberships',    val: memberships.length, color: '#10b981', bg: 'rgba(16,185,129,0.1)',   sub: `${activeMemberships} active` },
-                { icon: '💰', label: 'Total Revenue',  val: `₹${totalRevenue.toLocaleString()}`, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', sub: 'All time' },
+                { icon: '👥', label: 'Total Users',   val: users.length,       color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',   sub: `${memberUsers} members` },
+                { icon: '🏋️', label: 'Trainers',      val: trainers.length,    color: '#a78bfa', bg: 'rgba(167,139,250,0.1)', sub: `${activeTrainers} active` },
+                { icon: '🎫', label: 'Memberships',   val: memberships.length, color: '#10b981', bg: 'rgba(16,185,129,0.1)',   sub: `${activeMemberships} active` },
+                { icon: '💰', label: 'Total Revenue', val: `₹${totalRevenue.toLocaleString()}`, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', sub: 'All time' },
               ].map((s, i) => (
                 <div key={i} className="stat-card" style={{ borderTop: `3px solid ${s.color}` }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -149,9 +141,7 @@ const AdminPanel = () => {
               ))}
             </div>
 
-            {/* Recent Users + Memberships */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-              {/* Recent Users */}
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
                   <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 15, margin: 0 }}>👥 Recent Users</h3>
@@ -171,7 +161,6 @@ const AdminPanel = () => {
                 ))}
               </div>
 
-              {/* Recent Memberships */}
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14 }}>
                   <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 15, margin: 0 }}>🎫 Recent Memberships</h3>
@@ -185,7 +174,7 @@ const AdminPanel = () => {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#f59e0b' }}>₹{m.amount?.toLocaleString()}</div>
-                      <span className="badge" style={{ background: `${STATUS_COLOR[m.status] || '#888'}20`, color: STATUS_COLOR[m.status] || '#888', fontSize: 10, marginTop: 2 }}>{m.status}</span>
+                      <span className="badge" style={{ background: `${STATUS_COLOR[m.status] || '#888'}20`, color: STATUS_COLOR[m.status] || '#888', fontSize: 10 }}>{m.status}</span>
                     </div>
                   </div>
                 ))}
@@ -194,7 +183,7 @@ const AdminPanel = () => {
           </div>
         )}
 
-        {/* ── USERS ── */}
+        {/* USERS */}
         {activeTab === 'users' && (
           <div className="fade-up">
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20 }}>
@@ -205,9 +194,7 @@ const AdminPanel = () => {
               <div className="table-wrap">
                 <table>
                   <thead>
-                    <tr>
-                      <th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Action</th>
-                    </tr>
+                    <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr>
                   </thead>
                   <tbody>
                     {users.map(u => (
@@ -232,13 +219,13 @@ const AdminPanel = () => {
                     ))}
                   </tbody>
                 </table>
-                {users.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>No users found</div>}
+                {users.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>No users found</div>}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── TRAINERS ── */}
+        {/* TRAINERS */}
         {activeTab === 'trainers' && (
           <div className="fade-up">
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20 }}>
@@ -268,13 +255,13 @@ const AdminPanel = () => {
                     ))}
                   </tbody>
                 </table>
-                {trainers.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>No trainers found</div>}
+                {trainers.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>No trainers found</div>}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── MEMBERSHIPS ── */}
+        {/* MEMBERSHIPS */}
         {activeTab === 'memberships' && (
           <div className="fade-up">
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 20 }}>
@@ -297,16 +284,15 @@ const AdminPanel = () => {
                     ))}
                   </tbody>
                 </table>
-                {memberships.length === 0 && <div style={{ textAlign: 'center', padding: '40px', color: 'rgba(255,255,255,0.3)' }}>No memberships found</div>}
+                {memberships.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'rgba(255,255,255,0.3)' }}>No memberships found</div>}
               </div>
             </div>
           </div>
         )}
 
-        {/* ── REVENUE ── */}
+        {/* REVENUE */}
         {activeTab === 'revenue' && (
           <div className="fade-up">
-            {/* Revenue Cards */}
             <div className="rev-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
               {[
                 { icon: '💰', label: 'Total Revenue', val: `₹${totalRevenue.toLocaleString()}`, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
@@ -321,7 +307,6 @@ const AdminPanel = () => {
               ))}
             </div>
 
-            {/* Plan Breakdown */}
             <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 16, padding: 24, marginBottom: 20 }}>
               <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 20 }}>📊 Revenue by Plan</h3>
               {['MONTHLY', 'QUARTERLY', 'YEARLY'].map(plan => {
@@ -346,7 +331,6 @@ const AdminPanel = () => {
               })}
             </div>
 
-            {/* Status Breakdown */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
               {['ACTIVE', 'EXPIRED', 'CANCELLED'].map(status => {
                 const count = memberships.filter(m => m.status === status).length;
